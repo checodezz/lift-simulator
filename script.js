@@ -2,6 +2,7 @@
 const userForm = document.querySelector("#userForm");
 const floorsInput = document.querySelector("#floors")
 const liftsInput = document.querySelector("#lifts")
+const building = document.querySelector("#building")
 
 
 let totalFloors = 0
@@ -22,7 +23,8 @@ userForm.addEventListener("submit", (e) => {
         totalLifts = liftCount;
 
         // Call the function to generate the simulation
-        generateSimulation(totalFloors, totalLifts);
+        // generateSimulation(totalFloors, totalLifts);
+        generateFloors()
     }
 
     console.log(floorCount);
@@ -30,7 +32,7 @@ userForm.addEventListener("submit", (e) => {
 });
 
 
-
+/* 
 function generateSimulation(floors, lifts) {
     const simulationSection = document.querySelector("#simulation");
     simulationSection.innerHTML = "";
@@ -85,5 +87,49 @@ function moveLiftToFloor(targetFloor) {
         // Move the lift to the target floor
         closestLift.style.transform = `translateY(-${(targetFloor - 1) * 100}px)`;
         closestLift.dataset.currentFloor = targetFloor;
+    }
+}
+ */
+
+
+const btnClickHandler = async (e) => {
+    const element = e.target;
+    console.log(element);
+}
+
+
+function generateFloors() {
+    for (let i = totalFloors; i >= 1; i--) {
+        const floorDiv = document.createElement("div");
+        const btnDiv = document.createElement("div");
+        const upButton = document.createElement("button");
+        const downButton = document.createElement("button");
+
+        floorDiv.className = `floor-container`;
+        btnDiv.className = `floor-btn-container`;
+
+
+        upButton.className = `btn`;
+        upButton.textContent = "Up";
+
+        downButton.classList = `btn`;
+        downButton.textContent = "Down";
+
+        upButton.addEventListener("click", btnClickHandler)
+        downButton.addEventListener("click", btnClickHandler)
+
+        //edge case
+        // if (i === totalFloors) {
+        //     upButton
+        // }
+
+        floorDiv.setAttribute("floor-id", i);
+        upButton.setAttribute("floor-id", i);
+        downButton.setAttribute("floor-id", i);
+
+
+        btnDiv.append(upButton, downButton);
+        floorDiv.append(btnDiv);
+        building.append(floorDiv)
     }
 }
