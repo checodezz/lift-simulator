@@ -3,13 +3,6 @@ const resetBtn = document.querySelector(".reset-btn");
 const backBtn = document.querySelector(".back_btn");
 const building = document.querySelector(".building");
 
-/*
-{
-  liftId : 1,
-  currentFloor : 2,
-  isOccupied : true | false,
-}
-*/
 let totalLifts = 0;
 let totalFloors = 0;
 let allLifts = [];
@@ -69,44 +62,9 @@ async function buttonClickHandler(event) {
     const element = event.target;
     const destinationFloor = Number(element.getAttribute("floor-id"));
 
-    // For evaluating only one lift per floor
-    const { liftElement, liftId } = checkIsLiftAlreadyPresent(destinationFloor);
-    if (liftElement) {
-        const liftState = getLiftById(liftId);
-        if (!liftState?.isOccupied) {
-            updateLiftState(liftElement, liftState.currentFloor, true);
-            await handleDoors(liftElement, getLiftById(liftId), destinationFloor);
-        }
-        return;
-    }
-
-    if (
-        pendingFloors.length > 0 &&
-        pendingFloors[pendingFloors.length - 1] === destinationFloor
-    ) {
-        return;
-    }
-
     pendingFloors.push(destinationFloor);
 
-    if (isLiftAvailable()) {
-        await findLifts();
-    }
-}
-
-function checkIsLiftAlreadyPresent(destinationFloor) {
-    const allLiftElements = document.querySelectorAll(".lift");
-    const height = -(destinationFloor - 1) * 10;
-    for (const lift of allLiftElements) {
-        console.log(lift.style.transform == `translateY(${height}rem)`);
-        if (lift.style.transform == `translateY(${height}rem)`) {
-            let liftName = lift.id;
-            let liftId = Number(liftName.replace(/\D/g, ""));
-            return { liftElement: lift, liftId };
-        }
-    }
-
-    return { liftElement: null, liftId: null };
+    findLifts();
 }
 
 function generateFloors() {
@@ -174,86 +132,49 @@ function generateLifts() {
 }
 
 async function findLifts() {
-    if (pendingFloors.length > 0) {
+    while (pendingFloors.length > 0) {
         let destinationFloor = pendingFloors.shift();
-        const { liftDiv, liftId } = checkIsLiftAlreadyPresent(destinationFloor);
-        if (liftDiv) {
-            const liftState = getLiftById(liftId);
-            if (!liftState?.isOccupied) {
-                updateLiftState(liftElement, liftState.currentFloor, true);
-                await handleDoors(liftElement, getLiftById(liftId), destinationFloor);
-            }
-            return;
-        }
+        const nearestLift = findNearestLift(destinationFloor);
 
-        if (isLiftAvailable()) {
-            const emptyLifts = getAllEmptyLifts();
-            const nearestLift = findNearestLift(emptyLifts, destinationFloor);
+        if (nearestLift) {
             const liftElement = document.getElementById(`lift ${nearestLift.liftId}`);
-
-            if (nearestLift.currentFloor === destinationFloor) {
-                // same floor just open the door
-                //updating lift => occupied
-                updateLiftState(nearestLift, nearestLift.currentFloor, true);
-                await handleDoors(liftElement, nearestLift, destinationFloor);
-            } else {
-                await moveLift(liftElement, nearestLift, destinationFloor);
-            }
+            await moveLift(liftElement, nearestLift, destinationFloor);
         }
     }
 }
 
 function isLiftAvailable() {
-    for (let i = 0; i < totalLifts; i++) {
-        if (!allLifts[i].isOccupied) {
-            return true;
-        }
-    }
-    return false;
+    return allLifts.some((lift) => !lift.isOccupied);
 }
 
-function getAllEmptyLifts() {
-    return allLifts.filter((lift) => !lift?.isOccupied);
-}
+function findNearestLift(destinationFloor) {
+    const availableLifts = allLifts.filter((lift) => !lift.isOccupied);
+    if (availableLifts.length === 0) return null;
 
-function getLiftById(liftId) {
-    for (let i = 0; i < allLifts.length; i++) {
-        if (allLifts[i].liftId === liftId) {
-            return allLifts[i];
-        }
-    }
-}
-
-function findNearestLift(allEmptyLifts, destinationFloor) {
-    const nearestLifts = allEmptyLifts?.sort(
+    availableLifts.sort(
         (a, b) =>
             Math.abs(a.currentFloor - destinationFloor) -
             Math.abs(b.currentFloor - destinationFloor)
     );
-    return nearestLifts[0];
-}
-
-function updateLiftState(lift, currentFloor, isOccupied) {
-    lift.isOccupied = isOccupied;
-    lift.currentFloor = currentFloor;
+    return availableLifts[0];
 }
 
 async function moveLift(liftElement, lift, destinationFloor) {
     const diffFloors = Math.abs(lift.currentFloor - destinationFloor);
-    //updating lift => occupied
-    updateLiftState(lift, lift.currentFloor, (isOccupied = true));
 
-    //moving lift
-    liftElement.style.transform = `translateY(-${(destinationFloor - 1) * 10
-        }rem)`;
+    lift.isOccupied = true;
+
+    liftElement.style.transform = `translateY(-${(destinationFloor - 1) * 10}rem)`;
     liftElement.style.transition = `all ${diffFloors * 2}s ease`;
     await setDelay(2 * diffFloors);
 
-    //Handling door opening
-    await handleDoors(liftElement, lift, destinationFloor);
+    await handleDoors(liftElement);
+
+    lift.currentFloor = destinationFloor;
+    lift.isOccupied = false;
 }
 
-async function handleDoors(liftElement, lift, destinationFloor) {
+async function handleDoors(liftElement) {
     const doorsContainer = liftElement.firstChild;
     doorsContainer.classList.add("openLift");
     doorsContainer.classList.remove("closeLift");
@@ -261,12 +182,6 @@ async function handleDoors(liftElement, lift, destinationFloor) {
     doorsContainer.classList.add("closeLift");
     doorsContainer.classList.remove("openLift");
     await setDelay(2.5);
-    //update lift => not occupied
-    updateLiftState(lift, destinationFloor, (isOccupied = false));
-
-    if (pendingFloors.length > 0) {
-        findLifts();
-    }
 }
 
 function setDelay(secs) {
